@@ -5,3 +5,5 @@ Copyright (C) 2022 Collodi Choi
 All rights reserved.
 2022-Nov-18 Created by Collodi Choi
 Powered by Scheme R74S Gauche and Gauche-makiki
+-------
+Usage: ./rontgen.scm
