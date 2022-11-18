@@ -1,0 +1,17 @@
+body {
+  margin: 0 auto;
+  width: 95%;
+}
+
+.outer {
+  margin: 0 auto;
+  width: auto;
+}
+
+.topmenu {
+  margin-right: 15px;
+}
+
+.w3-allerta {
+  font-family: "Allerta Stencil", Sans-serif;
+}
