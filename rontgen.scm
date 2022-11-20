@@ -18,6 +18,7 @@
 (use makiki)
 
 (define index 0) ;; Imagemagick counts from 0
+(define mode 0) ;; image=0, quizz=1
 (define slide-length 23) ;; TODO: build a macro to automate this
 
 (define indexprev
@@ -32,6 +33,16 @@
   (html:footer :class "w3-container w3-white" :width "100%" 
     (html:p (html:i "Copyright© 2022 Collodi Choi. All rights reserved. Powered by " 
       (html:a :href "http://www.w3schools.com/w3css/default.asp" "w3.css") " & Scheme R7RS"))))
+
+(define img-slide
+  (html:img :id "slideimg" :class "slide" 
+    ;; :src "/present/slides/current"
+    ))
+
+(define quizz-slide
+  (html:div :id "slidequizz" :class "slide" 
+    ;; :src "/present/slides/current"
+    ))
 
 ;; main program just starts the server.
 ;; logs goes to stdout (:access-log #t :error-log #t)
@@ -63,10 +74,14 @@
                   (html:p
                    ;; (html:a :class "topmenu" :href "/src/" "Browse makiki source")
                    ;; (html:a :class "topmenu" :href "/echo-headers" "View request headers")
-                   (html:a :class "topmenu" :href "/present/studentin" "Prelego Diapozitivoj / Lecture Slides")
-                   (html:a :class "topmenu" :href "/present/lehrer" "Prelego Kontrolo / Lecture Control")
-                   (html:a :class "topmenu" :href "/present/lehrer/upload" "Alŝutu diapozitivojn / Upload Slides") 
-                   (html:a :class "topmenu" :href "/src/wiki" "Akvario Vikio / Aquarium Wiki"))
+                   (html:a :class "topmenu" :id "present-studentin"
+                           :href "/present/studentin" "")
+                   (html:a :class "topmenu" :id "present-lehrer"
+                           :href "/present/lehrer" "")
+                   (html:a :class "topmenu" :id "present-lehrer-upload"
+                           :href "/present/lehrer/upload" "") 
+                   (html:a :class "topmenu" :id "src-wiki"
+                           :href "/src/wiki" ""))
                   (html:p
                    (html:img :class "slide" :width "100%" :src "/src/slides/s1.jpg")))
          footer)))))
@@ -89,11 +104,23 @@
                                        :class "w3-button w3-white w3-bar-item w3-right" "&nbsp+&nbsp")
                           (html:button :type "button" :onClick "smallerSlide()" 
                                        :class "w3-button w3-black w3-bar-item w3-right" "&nbsp-&nbsp")))
-                  (html:p
-                   (html:img :id "slideimg" :class "slide" 
+                  (html:p :id "screen"
+                   ;; (html:img :id "slideimg" :class "slide" 
                              ;; :src "/present/slides/current"
-                             )))
+                             ;; )
+                   ))
          footer)))))
+
+
+(define-http-handler "/present/screen"
+  (^[req app]
+    (respond/ok req
+        (if (= mode 0)
+          (html:img :id "slideimg" :class "slide" 
+            :src (format #f "/src/slides/slide-~d.png" index))
+          
+          (html:p "Quizz. Under Construction")))))
+
 
 (define-http-handler "/present/lehrer"
   (^[req app]
@@ -114,8 +141,8 @@
                   footer))))))
 
 
-(define-http-handler "/present/slides/current"
-  (^[req app] (respond/redirect req (format #f "/src/slides/slide-~d.png" index)) ))
+;; (define-http-handler "/present/slides/current"
+;;  (^[req app] (respond/redirect req (format #f "/src/slides/slide-~d.png" index)) ))
 
 (define-http-handler "/present/lehrer/prev"
   (^[req app] (respond/redirect req "/present/lehrer") (indexprev) ))

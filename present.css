@@ -28,6 +28,12 @@ body {
   border: 2px solid black;
 }
 
+#screen {
+  margin: 0 auto;
+  width: 100%;
+  border: 2px solid black;
+}
+
 .center {
   margin: auto;
   width: 100%;
