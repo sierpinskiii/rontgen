@@ -4,13 +4,14 @@ window.onload = function () {
     var screen = document.getElementById("screen");
 
     function updateScreen() {
+        // https://stackoverflow.com/a/17636635
         fetch("/present/screen")
         .then((response) => response.text())
         .then((html) => {
             document.getElementById("screen").innerHTML = html;
         })
         .catch((error) => {
-            console.log("failed to retrieve the screen data";
+            console.log("failed to retrieve the screen data");
         });
         
         // document.getElementById("screen").innerHTML = "<object type='type/html' data='/present/screen?" + Math.random() + "' ></object>";

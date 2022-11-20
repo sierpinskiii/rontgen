@@ -119,7 +119,9 @@
           (html:img :id "slideimg" :class "slide" 
             :src (format #f "/src/slides/slide-~d.png" index))
           
-          (html:p "Quizz. Under Construction")))))
+          (html:div 
+            (html:input :class "w3-radio" :type "radio"
+                        :name "answer1" :value "I don't know"))))))
 
 
 (define-http-handler "/present/lehrer"
@@ -149,6 +151,13 @@
 
 (define-http-handler "/present/lehrer/next"
   (^[req app] (respond/redirect req "/present/lehrer") (indexnext) ))
+
+
+(define-http-handler "/present/lehrer/mode/img"
+  (^[req app] (respond/redirect req "/present/lehrer") (set! mode 0) ))
+
+(define-http-handler "/present/lehrer/mode/quizz"
+  (^[req app] (respond/redirect req "/present/lehrer") (set! mode 1) ))
 
 ;; The path '/src/' shows the current directory and below.
 ;; We pass the proc to extract path below '/src' to the :path-trans
