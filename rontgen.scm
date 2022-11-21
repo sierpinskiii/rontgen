@@ -15,7 +15,10 @@
 (use gauche.parseopt)
 (use text.html-lite)
 (use srfi-1)
+(use file.util)
 (use makiki)
+
+(define *upload-slides-prefix* "/tmp/upload-sample-")
 
 (define index 0) ;; Imagemagick counts from 0
 (define mode 0) ;; image=0, quizz=1
@@ -165,6 +168,52 @@
 (define-http-handler "/present/lehrer/mode/quizz"
   (^[req app] (respond/redirect req "/present/lehrer") (set! mode 1) ))
 
+
+(define-http-handler "/present/lehrer/upload"
+  (^[req app]
+    (respond/ok req
+      (html:html
+       (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
+       (html:link :rel "stylesheet" :href "https://fonts.googleapis.com/css?family=Allerta+Stencil")
+       (html:link :rel "stylesheet" :href "/src/main.css")
+       (html:head (html:title "AQUARIUM::SYSTEM"))
+       (html:body :class "w3-container w3-light-grey"
+         (html:div :class "outer"
+                  (html:h1 :class "w3-allerta" "RG/AQUARIUM::WEBSYSTEM")
+                  (html:h3 :class "w3-allerta" "Lecture File Upload")
+                  (html:p "La servilo funkcias ekde " app
+                          "ĉe PORT " (request-server-port req)
+                          " sur host " (request-server-host req)
+                          " kun Scheme R7RS"
+                          "."))
+                  (html:form :action "/present/lehrer/upload/slides"
+                    (html:input :type "file" :id "myFile" :name "filename")
+                    (html:input :type "submit"))
+         footer)))))
+
+
+(define-http-handler "/present/lehrer/upload/slides"
+  (with-post-parameters
+   (^[req app]
+     (let-params req ([tnames "q:files" :list #t])
+       ($ respond/ok req   
+          `(sxml
+            (html
+             (head (title "Upload test"))
+             (body
+              (p "Uploaded files:")
+              (table
+               (@ (border "1"))
+               (tr (th "tmp name") (th "original name") (th "file size"))
+               ,@(map
+                  (^[tmp&orig]
+                    `(tr (td (tt ,(car tmp&orig)))
+                         (td (tt ,(cadr tmp&orig)))
+                         (td (tt ,(x->string (file-size (car tmp&orig)))))))
+                  tnames))))))))
+   :part-handlers `(("files" file+name :prefix ,*upload-slides-prefix*))))
+
+
 ;; The path '/src/' shows the current directory and below.
 ;; We pass the proc to extract path below '/src' to the :path-trans
 ;; arg of file-handler, which will interpret the translated path relative
@@ -181,6 +230,7 @@
   (^[req app]
     (respond/ok req
                 (html:html
+                 (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
                  (html:head (html:title "echo-header"))
                  (html:body (html:h1 "Request headers")
                             (html:pre
