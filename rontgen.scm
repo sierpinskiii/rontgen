@@ -20,6 +20,7 @@
 (define index 0) ;; Imagemagick counts from 0
 (define mode 0) ;; image=0, quizz=1
 (define slide-length 23) ;; TODO: build a macro to automate this
+(define update-flag 0)
 
 (define indexprev
     (lambda ()
@@ -122,6 +123,11 @@
           (html:div 
             (html:input :class "w3-radio" :type "radio"
                         :name "answer1" :value "I don't know"))))))
+
+
+(define-http-handler "/present/flag"
+  (^[req app]
+    (respond/ok "0")))
 
 
 (define-http-handler "/present/lehrer"

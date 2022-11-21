@@ -3,23 +3,44 @@ window.onload = function () {
     var slidequizz = document.getElementById("slidequizz");
     var screen = document.getElementById("screen");
 
-    function updateScreen() {
-        // https://stackoverflow.com/a/17636635
-        fetch("/present/screen")
-        .then((response) => response.text())
-        .then((html) => {
-            document.getElementById("screen").innerHTML = html;
-        })
-        .catch((error) => {
-            console.log("failed to retrieve the screen data");
-        });
-        
-        // document.getElementById("screen").innerHTML = "<object type='type/html' data='/present/screen?" + Math.random() + "' ></object>";
-        // slideimg.src = "/present/slides/current?" + Math.random();
-        // console.log("update");
+    function updateScreen(id, flag, html) {
+        if (id == "0") {
+            document.getElementById(id).innerHTML = html;
+        }
     }
 
-    setInterval(updateScreen, 1000);
+    // setInterval(updateScreen, 1000);
+
+
+    // Long Poll
+    async function subscribe() {
+      let response = await fetch("/present/screen");
+
+      if (response.status == 502) {
+        // Status 502 is a connection timeout error,
+        // may happen when the connection was pending for too long,
+        // and the remote server or a proxy closed it
+        // let's reconnect
+        await subscribe();
+      } else if (response.status != 200) {
+        // An error - let's show it
+        // console.log(response.statusText);
+        // Reconnect in one second
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await subscribe();
+      } else {
+        // Get and show the message
+        let message = await response.text();
+        // console.log(message);
+        updateScreen(message);
+        document.getElementById("screen").innerHTML = message;
+        // Call subscribe() again to get the next message
+        await subscribe();
+      }
+    }
+
+    subscribe();
+
 }
 
 var slidesize = 100;
