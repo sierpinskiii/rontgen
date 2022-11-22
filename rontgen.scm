@@ -13,29 +13,32 @@
 (add-load-path ".." :relative)
 (use gauche.threads)
 (use gauche.parseopt)
+(use gauche.process)
 (use text.html-lite)
 (use srfi-1)
 (use file.util)
 (use makiki)
 
-(define *upload-slides-prefix* "/tmp/upload-sample-")
+(define *upload-img-prefix* "/tmp/upload-sample-")  ;; default in Gauche-Makiki
+
+(make-directory* "./tmp")
 
 (define index 0) ;; Imagemagick counts from 0
 (define mode 0) ;; image=0, quizz=1
 (define slide-length 23) ;; TODO: build a macro to automate this
 (define update-flag 0)
 
-(define indexprev
+(define index-prev
     (lambda ()
         (set! index (if (= index 0) slide-length (- index 1)) )))
 
-(define indexnext
+(define index-next
     (lambda ()
         (set! index (modulo (+ index 1) slide-length))))
 
 (define footer
   (html:footer :class "w3-container w3-white" :width "100%" 
-    (html:p (html:i "Copyright© 2022 Collodi Choi. All rights reserved. Powered by " 
+    (html:p (html:i "Copyright© 2022 " (html:a :href "https://github.com/sierpinskiii/rontgen" "Collodi Choi") ". All rights reserved. Powered by " 
       (html:a :href "http://www.w3schools.com/w3css/default.asp" "w3.css") " & Scheme R7RS"))))
 
 (define img-slide
@@ -47,6 +50,13 @@
   (html:div :id "slidequizz" :class "slide" 
     ;; :src "/present/slides/current"
     ))
+
+
+(define image-mode
+  (set! mode 0))
+
+(define quizz-mode
+  (set! mode 1))
 
 ;; main program just starts the server.
 ;; logs goes to stdout (:access-log #t :error-log #t)
@@ -76,8 +86,6 @@
                           " kun Scheme R7RS"
                           ".")
                   (html:p
-                   ;; (html:a :class "topmenu" :href "/src/" "Browse makiki source")
-                   ;; (html:a :class "topmenu" :href "/echo-headers" "View request headers")
                    (html:a :class "topmenu" :id "present-studentin"
                            :href "/present/studentin" "")
                    (html:a :class "topmenu" :id "present-lehrer"
@@ -94,7 +102,7 @@
   (^[req app]
     (respond/ok req
       (html:html
-       (html:script :src "/src/studentin.js")
+       (html:script :src "/src/screen.js")
        (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
        (html:link :rel "stylesheet" :href "/src/present.css")
        (html:head (html:title "AQUARIUM::SYSTEM"))
@@ -108,11 +116,7 @@
                                        :class "w3-button w3-white w3-bar-item w3-right" "&nbsp+&nbsp")
                           (html:button :type "button" :onClick "smallerSlide()" 
                                        :class "w3-button w3-black w3-bar-item w3-right" "&nbsp-&nbsp")))
-                  (html:p :id "screen"
-                   ;; (html:img :id "slideimg" :class "slide" 
-                             ;; :src "/present/slides/current"
-                             ;; )
-                   ))
+                  (html:p :id "screen"))
          footer)))))
 
 
@@ -138,6 +142,7 @@
     (respond/ok req
       (html:html
        (html:head (html:title "AQUARIUM::SYSTEM"))
+       (html:script :src "/src/screen.js")
        (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
        (html:link :rel "stylesheet" :href "/src/present.css")
        (html:body :class "w3-container w3-light-grey"
@@ -145,10 +150,32 @@
                   (html:div :class "w3-bar w3-white"
                    (html:a :class "w3-bar-item w3-button" :href "/" "Top")
                    (html:div :class "w3-bar-item" (html:b "Lecture Control"))
+
+                   (html:div :class "w3-dropdown-hover"
+                     (html:button :class "w3-button" "Project")
+                     (html:div :class "w3-dropdown-content w3-bar-block w3-card-4"
+                       (html:a :href "/present/lehrer/mode/image" :class "w3-bar-item w3-button" "Introduction_to_LN.pdf.d")
+                       (html:a :href "/present/lehrer/mode/quizz" :class "w3-bar-item w3-button" "Dirac_Nocation.pdf.d")
+                       ))
+
+                   (html:div :class "w3-dropdown-hover"
+                     (html:button :class "w3-button" "Mode")
+                     (html:div :class "w3-dropdown-content w3-bar-block w3-card-4"
+                       (html:a :href "/present/lehrer/mode/image" :class "w3-bar-item w3-button" "(image-mode t)")
+                       (html:a :href "/present/lehrer/mode/quizz" :class "w3-bar-item w3-button" "(quizz-mode t)")
+                       ))
+
+
                    (html:a :class "w3-bar-item w3-button w3-right" :href "/present/lehrer/next" "Next")
-                   (html:a :class "w3-bar-item w3-button w3-right" :href "/present/lehrer/prev" "Prev"))
-                  (html:img :class "center" :id "slideimg"
-                             :src (format #f "/src/slides/slide-~d.png" index))
+                   (html:a :class "w3-bar-item w3-button w3-right" :href "/present/lehrer/prev" "Prev")
+
+                   (html:button :type "button" :onClick "largerSlide()" 
+                                :class "w3-button w3-white w3-bar-item w3-right" "&nbsp+&nbsp")
+                   (html:button :type "button" :onClick "smallerSlide()" 
+                                :class "w3-button w3-black w3-bar-item w3-right" "&nbsp-&nbsp"))
+
+                  (html:div :id "screen")
+
                   footer))))))
 
 
@@ -156,13 +183,13 @@
 ;;  (^[req app] (respond/redirect req (format #f "/src/slides/slide-~d.png" index)) ))
 
 (define-http-handler "/present/lehrer/prev"
-  (^[req app] (respond/redirect req "/present/lehrer") (indexprev) ))
+  (^[req app] (respond/redirect req "/present/lehrer") (index-prev) ))
 
 (define-http-handler "/present/lehrer/next"
-  (^[req app] (respond/redirect req "/present/lehrer") (indexnext) ))
+  (^[req app] (respond/redirect req "/present/lehrer") (index-next) ))
 
 
-(define-http-handler "/present/lehrer/mode/img"
+(define-http-handler "/present/lehrer/mode/image"
   (^[req app] (respond/redirect req "/present/lehrer") (set! mode 0) ))
 
 (define-http-handler "/present/lehrer/mode/quizz"
@@ -171,48 +198,42 @@
 
 (define-http-handler "/present/lehrer/upload"
   (^[req app]
-    (respond/ok req
-      (html:html
-       (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
-       (html:link :rel "stylesheet" :href "https://fonts.googleapis.com/css?family=Allerta+Stencil")
-       (html:link :rel "stylesheet" :href "/src/main.css")
-       (html:head (html:title "AQUARIUM::SYSTEM"))
-       (html:body :class "w3-container w3-light-grey"
-         (html:div :class "outer"
-                  (html:h1 :class "w3-allerta" "RG/AQUARIUM::WEBSYSTEM")
-                  (html:h3 :class "w3-allerta" "Lecture File Upload")
-                  (html:p "La servilo funkcias ekde " app
-                          "ĉe PORT " (request-server-port req)
-                          " sur host " (request-server-host req)
-                          " kun Scheme R7RS"
-                          "."))
-                  (html:form :action "/present/lehrer/upload/slides"
-                    (html:input :type "file" :id "myFile" :name "filename")
-                    (html:input :type "submit"))
-         footer)))))
+    ($ respond/ok req
+       '(sxml
+         (html
+          (head (title "Upload test"))
+          (body
+           (form (@ (action "/present/lehrer/upload/slides") (method "POST")
+                    (enctype "multipart/form-data"))
+                 (p "Choose file(s) to upload:"
+                    (input (@ (type "file") (name "files")
+                              (multiple "multiple"))))
+                 (input (@ (type "submit") (name "submit")
+                           (value "post"))))))))))
 
+
+(define-http-handler "/" (file-handler))
+                                    ;; :directory-index '("/tmp" #t)
+                                    ;; :path-trans
+                                    ;; :prefix "/tmp/upload-sample-"
+                                    ;; :root (document-root)))
 
 (define-http-handler "/present/lehrer/upload/slides"
   (with-post-parameters
    (^[req app]
      (let-params req ([tnames "q:files" :list #t])
-       ($ respond/ok req   
+       ($ respond/ok req
           `(sxml
             (html
              (head (title "Upload test"))
              (body
               (p "Uploaded files:")
-              (table
-               (@ (border "1"))
-               (tr (th "tmp name") (th "original name") (th "file size"))
                ,@(map
-                  (^[tmp&orig]
-                    `(tr (td (tt ,(car tmp&orig)))
-                         (td (tt ,(cadr tmp&orig)))
-                         (td (tt ,(x->string (file-size (car tmp&orig)))))))
-                  tnames))))))))
-   :part-handlers `(("files" file+name :prefix ,*upload-slides-prefix*))))
-
+                  (^[filename]
+                    (x->string (copy-file (car filename) 
+                                          (string-append "./proj/" (cadr filename)))))
+                  tnames)))))))
+   :part-handlers `(("files" file+name :prefix ,*upload-img-prefix*))))
 
 ;; The path '/src/' shows the current directory and below.
 ;; We pass the proc to extract path below '/src' to the :path-trans
