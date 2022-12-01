@@ -26,5 +26,11 @@ body {
 #present-lehrer-upload:after {content: "Upload Slides"}
 #present-lehrer-upload:hover:after {content: "Alŝutu diapozitivojn"}
 
+#login:after {content: "Login"}
+#login:hover:after {content: "Hello"}
+
+#logout:after {content: "Logout"}
+#logout:hover:after {content: "Goodbye"}
+
 #src-wiki:after {content: "AQUARIUM Wiki"}
 #src-wiki:hover:after {content: "AKVARIO Vikio"}

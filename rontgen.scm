@@ -19,6 +19,12 @@
 (use file.util)
 (use makiki)
 
+(use util.match)
+(use data.cache)
+(use srfi-27)
+
+(load "./session2.scm")
+
 (define *upload-img-prefix* "/tmp/upload-sample-")  ;; default in Gauche-Makiki
 
 (make-directory* "./tmp")
@@ -52,20 +58,28 @@
     ))
 
 
-(define image-mode
-  (set! mode 0))
-
 (define quizz-mode
   (set! mode 1))
+
+(define image-mode
+  (set! mode 0))
 
 ;; main program just starts the server.
 ;; logs goes to stdout (:access-log #t :error-log #t)
 ;; we pass the timestamp to :app-data - it is avaliable to the 'app'
+
 ;;  argument in the http handlers below.
+;(define (main args)
+;  (let-args (cdr args) ([port "p|port=i" 8012])
+;    (start-http-server :access-log #t :error-log #t :port port
+;                       :app-data (sys-ctime (sys-time))))
+;  0)
+
 (define (main args)
   (let-args (cdr args) ([port "p|port=i" 8012])
+    (random-source-randomize! default-random-source)
     (start-http-server :access-log #t :error-log #t :port port
-                       :app-data (sys-ctime (sys-time))))
+                       :app-data (atom (make <app>))))
   0)
 
 ;; The root path handler.  We show some html, constructed by text.html-lite.
@@ -80,7 +94,7 @@
        (html:body :class "w3-container w3-light-grey"
          (html:div :class "outer"
                   (html:h1 :class "w3-allerta" "RG/AQUARIUM::WEBSYSTEM")
-                  (html:p "La servilo funkcias ekde " app
+                  (html:p "La servilo funkcias ekde "
                           "ĉe PORT " (request-server-port req)
                           " sur host " (request-server-host req)
                           " kun Scheme R7RS"
@@ -92,11 +106,16 @@
                            :href "/present/lehrer" "")
                    (html:a :class "topmenu" :id "present-lehrer-upload"
                            :href "/present/lehrer/upload" "") 
+                   (html:a :class "topmenu" :id "login"
+                           :href "/login" "")
+                   (html:a :class "topmenu" :id "logout"
+                           :href "/logout" "")
                    (html:a :class "topmenu" :id "src-wiki"
-                           :href "/src/wiki" ""))
+                           :href "https://collodi.dev/aquawiki" ""))
                   (html:p
                    (html:img :class "slide" :width "100%" :src "/src/slides/s1.jpg")))
          footer)))))
+
 
 (define-http-handler "/present/studentin"
   (^[req app]
@@ -138,6 +157,7 @@
 
 
 (define-http-handler "/present/lehrer"
+  ? check-login
   (^[req app]
     (respond/ok req
       (html:html
@@ -183,20 +203,25 @@
 ;;  (^[req app] (respond/redirect req (format #f "/src/slides/slide-~d.png" index)) ))
 
 (define-http-handler "/present/lehrer/prev"
+  ? check-login
   (^[req app] (respond/redirect req "/present/lehrer") (index-prev) ))
 
 (define-http-handler "/present/lehrer/next"
+  ? check-login
   (^[req app] (respond/redirect req "/present/lehrer") (index-next) ))
 
 
 (define-http-handler "/present/lehrer/mode/image"
+  ? check-login
   (^[req app] (respond/redirect req "/present/lehrer") (set! mode 0) ))
 
 (define-http-handler "/present/lehrer/mode/quizz"
+  ? check-login
   (^[req app] (respond/redirect req "/present/lehrer") (set! mode 1) ))
 
 
 (define-http-handler "/present/lehrer/upload"
+  ? check-login
   (^[req app]
     ($ respond/ok req
        '(sxml
@@ -235,6 +260,55 @@
                   tnames)))))))
    :part-handlers `(("files" file+name :prefix ,*upload-img-prefix*))))
 
+
+
+;; Browsers may try to fetch this.  We catch this specially so that
+;; the later 'catch all' clause won't be confused.
+(define-http-handler "/favicon.ico" (^[req app] (respond/ng req 404)))
+
+;; Logout
+(define-http-handler "/logout"
+  (^[req app]
+    (session-delete! req app)
+    ($ respond/ok req
+       (html:html
+        (html:head (html:title "Logged out"))
+        (html:body (html:p "You've successfully logged out.")
+                   (html:p (html:a :href "/" "login")))))))
+
+;; Login check
+(define-http-handler "/login"
+  ? session-data
+  (with-post-parameters
+   (^[req app]
+     (match (request-guard-value req)
+       [(and (#f . path) data)
+        (let-params req ([u "q:user"]
+                         [p "q:pass"])
+          (if (equal? (assoc-ref *password-db* u) p)
+            (begin
+              (set! (car data) #t)
+              (set! (cdr data) u)
+              (respond/redirect req path))
+            (respond/ok req (login-form "Invalid login"))))]
+       [(#t . user)
+        ($ respond/ok req
+           (html:html
+            (html:head (html:title "Welcome"))
+            (html:body (html:p "You've already logged in.")
+                       (html:p (html:a :href "/" "Top"))
+                       (html:p (html:a :href "/logout" "Log out")))))]))))
+
+(define (login-form msg)
+  (html:html
+   (html:head (html:title "Login"))
+   (html:body (if msg (html:p msg) "")
+              (html:form
+               :action "/login" :method "POST"
+               (html:p "Username:" (html:input :type "text" :name "user"))
+               (html:p "Password:" (html:input :type "password" :name "pass"))
+               (html:input :type "submit" :name "submit" :value "Login")))))
+
 ;; The path '/src/' shows the current directory and below.
 ;; We pass the proc to extract path below '/src' to the :path-trans
 ;; arg of file-handler, which will interpret the translated path relative
@@ -258,6 +332,12 @@
                              (map (^p (map (^v #"~(car p): ~v\n") (cdr p)))
                                   (request-headers req))))))))
 
+;; We use 'catch all' pattern, so that any req that hasn't match
+;; previous patterns comes here.
+(define-http-handler #/^.*$/
+  (^[req app]
+    (session-create! req app `(#f . ,(request-path req)))
+    (respond/ok req (login-form #f))))
 ;; Local variables:
 ;; mode: scheme
 ;; end:
