@@ -302,12 +302,18 @@
 (define (login-form msg)
   (html:html
    (html:head (html:title "Login"))
+   (html:link :rel "stylesheet" :href "https://www.w3schools.com/w3css/4/w3.css")
+   (html:link :rel "stylesheet" :href "https://unpkg.com/@sakun/system.css")
    (html:body (if msg (html:p msg) "")
+       (html:div :class "w3-display-container" :style "width:100%;height:100%"
+           (html:div :class "w3-display-middle"
               (html:form
                :action "/login" :method "POST"
-               (html:p "Username:" (html:input :type "text" :name "user"))
-               (html:p "Password:" (html:input :type "password" :name "pass"))
-               (html:input :type "submit" :name "submit" :value "Login")))))
+               (html:label :for "text_email" "Username")(html:br)
+               (html:input :id "text_email" :type "text" :name "user")(html:br)
+               (html:label :for "pwd" "Password")(html:br)
+               (html:input :id "text_pwd" :type "password" :name "pass")(html:br)(html:br)
+               (html:input :type "submit" :name "submit" :value "Login")))))))
 
 ;; The path '/src/' shows the current directory and below.
 ;; We pass the proc to extract path below '/src' to the :path-trans
